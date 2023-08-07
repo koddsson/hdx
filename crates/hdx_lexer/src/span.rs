@@ -1,5 +1,6 @@
 use std::{fmt::Display, hash::Hash};
 
+use hdx_atom::{Atom, Atomizable};
 use miette::{SourceOffset, SourceSpan};
 #[cfg(feature = "serde")]
 use serde::Serialize;
@@ -55,5 +56,35 @@ impl Display for Span {
 impl From<Span> for SourceSpan {
 	fn from(val: Span) -> Self {
 		Self::new(SourceOffset::from(val.start as usize), SourceOffset::from(val.size() as usize))
+	}
+}
+
+#[derive(Debug, PartialEq, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize), serde())]
+pub struct Spanned<T> {
+	pub node: T,
+	#[cfg_attr(feature = "serde", serde(flatten))]
+	pub span: Span,
+}
+
+impl<T> Spanned<T> {
+	pub fn dummy(node: T) -> Self {
+		Self { node, span: Span::dummy() }
+	}
+}
+
+impl<T: Atomizable> Atomizable for Spanned<T> {
+	fn from_atom(atom: Atom) -> Option<Self> {
+		T::from_atom(atom).map(|node| Self { node, span: Span::dummy() })
+	}
+
+	fn to_atom(&self) -> Atom {
+		self.node.to_atom()
+	}
+}
+
+impl<T: Default> Default for Spanned<T> {
+	fn default() -> Self {
+		Self::dummy(T::default())
 	}
 }

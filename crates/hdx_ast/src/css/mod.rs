@@ -6,3 +6,5 @@ pub mod selector;
 pub mod stylesheet;
 pub mod unknown;
 pub mod values;
+
+pub use stylesheet::CSSStyleSheet;

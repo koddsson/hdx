@@ -1,6 +1,7 @@
 use clap::Parser;
-use hdx_parser::Allocator;
+use hdx_ast::css::CSSStyleSheet;
 use hdx_writer::{BaseCssWriter, WriteCss};
+use oxc_allocator::Allocator;
 
 #[derive(Debug, Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -31,7 +32,7 @@ fn main() {
 		source_text.as_str(),
 		hdx_parser::ParserOptions::default(),
 	)
-	.parse();
+	.parse_with::<CSSStyleSheet>();
 	{
 		let start = std::time::Instant::now();
 		let mut str = String::new();

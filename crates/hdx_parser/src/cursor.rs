@@ -1,8 +1,9 @@
 use std::ops::Range;
 
+use hdx_atom::Atom;
 use hdx_lexer::{Kind, LexerCheckpoint, Span, Token};
 
-use crate::{diagnostics, Atom, Error, Parser, Result};
+use crate::{diagnostics, Error, Parser, Result};
 
 pub struct ParserCheckpoint<'a> {
 	lexer: LexerCheckpoint<'a>,
@@ -14,51 +15,51 @@ pub struct ParserCheckpoint<'a> {
 
 impl<'a> Parser<'a> {
 	#[inline]
-	pub(crate) fn cur(&self) -> &Token {
+	pub fn cur(&self) -> &Token {
 		&self.token
 	}
 
 	#[inline]
-	pub(crate) fn cur_atom(&self) -> Option<Atom> {
+	pub fn cur_atom(&self) -> Option<Atom> {
 		self.token.value.as_atom()
 	}
 
 	#[inline]
-	pub(crate) fn cur_atom_lower(&self) -> Option<Atom> {
+	pub fn cur_atom_lower(&self) -> Option<Atom> {
 		self.token.value.as_atom_lower()
 	}
 
 	#[inline]
-	pub(crate) fn cur_char(&self) -> Option<char> {
+	pub fn cur_char(&self) -> Option<char> {
 		self.token.value.as_char()
 	}
 
-	pub(crate) fn at(&self, kind: Kind) -> bool {
+	pub fn at(&self, kind: Kind) -> bool {
 		self.cur().kind == kind
 	}
 
-	pub(crate) fn expect(&mut self, kind: Kind) -> Result<()> {
+	pub fn expect(&mut self, kind: Kind) -> Result<()> {
 		self.expect_without_advance(kind)?;
 		self.advance();
 		Ok(())
 	}
 
 	#[inline]
-	pub(crate) fn expect_ident_cased(&mut self) -> Result<Atom> {
+	pub fn expect_ident_cased(&mut self) -> Result<Atom> {
 		let atom = self.expect_without_advance(Kind::Ident)?.value.as_atom().unwrap();
 		self.advance();
 		Ok(atom)
 	}
 
 	#[inline]
-	pub(crate) fn expect_ident(&mut self) -> Result<Atom> {
+	pub fn expect_ident(&mut self) -> Result<Atom> {
 		let atom = self.expect_without_advance(Kind::Ident)?.value.as_atom_lower().unwrap();
 		self.advance();
 		Ok(atom)
 	}
 
 	#[inline]
-	pub(crate) fn expect_ident_of(&mut self, atom: Atom) -> Result<()> {
+	pub fn expect_ident_of(&mut self, atom: Atom) -> Result<()> {
 		let ident = self.expect_without_advance(Kind::Ident)?.value.as_atom_lower().unwrap();
 		if atom != ident {
 			Err(diagnostics::ExpectedIdent(atom, ident, self.cur().span))?
@@ -68,14 +69,14 @@ impl<'a> Parser<'a> {
 	}
 
 	#[inline]
-	pub(crate) fn expect_function(&mut self) -> Result<Atom> {
+	pub fn expect_function(&mut self) -> Result<Atom> {
 		let atom = self.expect_without_advance(Kind::Function)?.value.as_atom_lower().unwrap();
 		self.advance();
 		Ok(atom)
 	}
 
 	#[inline]
-	pub(crate) fn expect_function_of(&mut self, atom: Atom) -> Result<()> {
+	pub fn expect_function_of(&mut self, atom: Atom) -> Result<()> {
 		let ident = self.expect_without_advance(Kind::Function)?.value.as_atom_lower().unwrap();
 		if atom != ident {
 			Err(diagnostics::ExpectedFunction(atom, ident, self.cur().span))?
@@ -85,14 +86,14 @@ impl<'a> Parser<'a> {
 	}
 
 	#[inline]
-	pub(crate) fn expect_at_keyword(&mut self) -> Result<Atom> {
+	pub fn expect_at_keyword(&mut self) -> Result<Atom> {
 		let atom = self.expect_without_advance(Kind::AtKeyword)?.value.as_atom_lower().unwrap();
 		self.advance();
 		Ok(atom)
 	}
 
 	#[inline]
-	pub(crate) fn expect_at_keyword_of(&mut self, atom: Atom) -> Result<()> {
+	pub fn expect_at_keyword_of(&mut self, atom: Atom) -> Result<()> {
 		let ident = self.expect_without_advance(Kind::AtKeyword)?.value.as_atom_lower().unwrap();
 		if atom != ident {
 			Err(diagnostics::ExpectedAtKeyword(atom, ident, self.cur().span))?
@@ -102,28 +103,28 @@ impl<'a> Parser<'a> {
 	}
 
 	#[inline]
-	pub(crate) fn expect_hash(&mut self) -> Result<Atom> {
+	pub fn expect_hash(&mut self) -> Result<Atom> {
 		let atom = self.expect_without_advance(Kind::Hash)?.value.as_atom().unwrap();
 		self.advance();
 		Ok(atom)
 	}
 
 	#[inline]
-	pub(crate) fn expect_string(&mut self) -> Result<Atom> {
+	pub fn expect_string(&mut self) -> Result<Atom> {
 		let atom = self.expect_without_advance(Kind::String)?.value.as_atom().unwrap();
 		self.advance();
 		Ok(atom)
 	}
 
 	#[inline]
-	pub(crate) fn expect_delim(&mut self) -> Result<char> {
+	pub fn expect_delim(&mut self) -> Result<char> {
 		let char = self.expect_without_advance(Kind::Delim)?.value.as_char().unwrap();
 		self.advance();
 		Ok(char)
 	}
 
 	#[inline]
-	pub(crate) fn expect_delim_of(&mut self, ch: char) -> Result<()> {
+	pub fn expect_delim_of(&mut self, ch: char) -> Result<()> {
 		if ch != self.expect_without_advance(Kind::Delim)?.value.as_char().unwrap() {
 			Err(diagnostics::UnexpectedDelim(ch, self.cur().span))?
 		}
@@ -132,14 +133,14 @@ impl<'a> Parser<'a> {
 	}
 
 	#[inline]
-	pub(crate) fn expect_number(&mut self) -> Result<f32> {
+	pub fn expect_number(&mut self) -> Result<f32> {
 		let n = self.expect_without_advance(Kind::Number)?.value.as_f32().unwrap();
 		self.advance();
 		Ok(n)
 	}
 
 	#[inline]
-	pub(crate) fn expect_number_gte(&mut self, min: f32) -> Result<f32> {
+	pub fn expect_number_gte(&mut self, min: f32) -> Result<f32> {
 		let n = self.expect_without_advance(Kind::Number)?.value.as_f32().unwrap();
 		if n < min {
 			Err(diagnostics::NumberTooSmall(min, self.cur().span))?
@@ -149,7 +150,7 @@ impl<'a> Parser<'a> {
 	}
 
 	#[inline]
-	pub(crate) fn expect_number_in_range(&mut self, range: Range<f32>) -> Result<f32> {
+	pub fn expect_number_in_range(&mut self, range: Range<f32>) -> Result<f32> {
 		let n = self.expect_without_advance(Kind::Number)?.value.as_f32().unwrap();
 		if !range.contains(&n) {
 			Err(diagnostics::NumberOutOfBounds(range.start, range.end, self.cur().span))?
@@ -159,7 +160,7 @@ impl<'a> Parser<'a> {
 	}
 
 	#[inline]
-	pub(crate) fn expect_int(&mut self) -> Result<i32> {
+	pub fn expect_int(&mut self) -> Result<i32> {
 		self.expect_without_advance(Kind::Number)?;
 		if !self.cur().value.is_int() {
 			Err(diagnostics::DisallowedFloat(self.cur().value.as_i32().unwrap(), self.cur().span))?
@@ -170,14 +171,14 @@ impl<'a> Parser<'a> {
 	}
 
 	#[inline]
-	pub(crate) fn expect_percentage(&mut self) -> Result<f32> {
+	pub fn expect_percentage(&mut self) -> Result<f32> {
 		let n = self.expect_without_advance(Kind::Percentage)?.value.as_f32().unwrap();
 		self.advance();
 		Ok(n)
 	}
 
 	#[inline]
-	pub(crate) fn expect_percentage_gte(&mut self, min: f32) -> Result<f32> {
+	pub fn expect_percentage_gte(&mut self, min: f32) -> Result<f32> {
 		let n = self.expect_without_advance(Kind::Percentage)?.value.as_f32().unwrap();
 		if n < min {
 			Err(diagnostics::NumberTooSmall(min, self.cur().span))?
@@ -187,7 +188,7 @@ impl<'a> Parser<'a> {
 	}
 
 	#[inline]
-	pub(crate) fn expect_dimension(&mut self) -> Result<(f32, Atom)> {
+	pub fn expect_dimension(&mut self) -> Result<(f32, Atom)> {
 		let value = &self.expect_without_advance(Kind::Dimension)?.value;
 		let (n, atom) = (value.as_f32().unwrap(), value.as_atom_lower().unwrap());
 		self.advance();
@@ -195,7 +196,7 @@ impl<'a> Parser<'a> {
 	}
 
 	#[inline]
-	pub(crate) fn expect_dimension_gte(&mut self, min: f32) -> Result<(f32, Atom)> {
+	pub fn expect_dimension_gte(&mut self, min: f32) -> Result<(f32, Atom)> {
 		let value = &self.expect_without_advance(Kind::Dimension)?.value;
 		let (n, atom) = (value.as_f32().unwrap(), value.as_atom_lower().unwrap());
 		if n < min {
@@ -206,7 +207,7 @@ impl<'a> Parser<'a> {
 	}
 
 	#[inline]
-	pub(crate) fn expect_dimension_in_range(&mut self, range: Range<f32>) -> Result<(f32, Atom)> {
+	pub fn expect_dimension_in_range(&mut self, range: Range<f32>) -> Result<(f32, Atom)> {
 		let value = &self.expect_without_advance(Kind::Dimension)?.value;
 		let (n, atom) = (value.as_f32().unwrap(), value.as_atom_lower().unwrap());
 		if !range.contains(&n) {
@@ -217,7 +218,7 @@ impl<'a> Parser<'a> {
 	}
 
 	#[inline]
-	pub(crate) fn expect_without_advance(&mut self, kind: Kind) -> Result<&Token> {
+	pub fn expect_without_advance(&mut self, kind: Kind) -> Result<&Token> {
 		if !self.at(kind) {
 			let range = self.cur().span;
 			Err::<(), Error>(diagnostics::ExpectedToken(kind, self.cur().kind, range).into())?;
@@ -226,11 +227,11 @@ impl<'a> Parser<'a> {
 	}
 
 	#[inline]
-	pub(crate) fn peek_including_trivia(&mut self) -> &Token {
+	pub fn peek_including_trivia(&mut self) -> &Token {
 		self.lexer.lookahead(1)
 	}
 
-	pub(crate) fn peek(&mut self) -> &Token {
+	pub fn peek(&mut self) -> &Token {
 		let mut i: u8 = 0;
 		loop {
 			i += 1;
@@ -241,12 +242,12 @@ impl<'a> Parser<'a> {
 	}
 
 	#[inline]
-	pub(crate) fn next_token_include_comments(&mut self) {
+	pub fn next_token_include_comments(&mut self) {
 		self.prev_span = self.token.span;
 		self.token = self.lexer.next_token();
 	}
 
-	pub(crate) fn next_token(&mut self) {
+	pub fn next_token(&mut self) {
 		self.prev_span = self.token.span;
 		loop {
 			let token = self.lexer.next_token();
@@ -257,7 +258,7 @@ impl<'a> Parser<'a> {
 		}
 	}
 
-	pub(crate) fn advance(&mut self) {
+	pub fn advance(&mut self) {
 		self.prev_span = self.token.span;
 		loop {
 			let token = self.lexer.next_token();
@@ -269,13 +270,13 @@ impl<'a> Parser<'a> {
 	}
 
 	#[inline]
-	pub(crate) fn skip_trivia(&mut self) {
+	pub fn skip_trivia(&mut self) {
 		if self.cur().is_trivia() {
 			self.advance();
 		}
 	}
 
-	pub(crate) fn rewind(&mut self, checkpoint: ParserCheckpoint<'a>) {
+	pub fn rewind(&mut self, checkpoint: ParserCheckpoint<'a>) {
 		let ParserCheckpoint { lexer, token, prev_span, warnings_pos, errors_pos } = checkpoint;
 		self.lexer.rewind(lexer);
 		self.token = token;
@@ -284,7 +285,7 @@ impl<'a> Parser<'a> {
 		self.errors.truncate(errors_pos);
 	}
 
-	pub(crate) fn checkpoint(&self) -> ParserCheckpoint<'a> {
+	pub fn checkpoint(&self) -> ParserCheckpoint<'a> {
 		ParserCheckpoint {
 			lexer: self.lexer.checkpoint(),
 			token: self.token.clone(),

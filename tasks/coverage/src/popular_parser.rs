@@ -4,7 +4,8 @@ use std::{
 };
 
 use glob::glob;
-use hdx_parser::{CSSStyleSheet, Spanned};
+use hdx_ast::css::CSSStyleSheet;
+use hdx_lexer::Spanned;
 use serde_json::{from_str, to_string_pretty, Value};
 
 use crate::{

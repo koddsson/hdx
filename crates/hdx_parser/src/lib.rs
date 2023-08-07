@@ -3,13 +3,12 @@
 
 mod css;
 mod cursor;
-mod diagnostics;
+pub mod diagnostics;
 
-pub use hdx_ast::{css::stylesheet::CSSStyleSheet, Spanned, Unit};
-pub use hdx_atom::{atom, Atom, Atomizable};
-pub use hdx_lexer::{Kind, Lexer, PairWise, Span, Token};
+use hdx_atom::{Atom, Atomizable};
+use hdx_lexer::{Kind, Lexer, Span, Spanned, Token, TokenValue};
 pub use miette::{Error, Result};
-pub use oxc_allocator::Allocator;
+use oxc_allocator::Allocator;
 pub(crate) use oxc_allocator::Vec;
 
 pub trait Parse<'a>: Sized {
@@ -17,6 +16,34 @@ pub trait Parse<'a>: Sized {
 
 	fn spanned(self, span: Span) -> Spanned<Self> {
 		Spanned { node: self, span }
+	}
+}
+
+pub trait FromToken: Sized {
+	fn from_token(tok: &Token) -> Result<Self>;
+}
+
+impl<'a, T: FromToken> Parse<'a> for T {
+	fn parse(parser: &mut Parser<'a>) -> Result<Spanned<Self>> {
+		let span = parser.cur().span;
+		let node = T::from_token(parser.cur())?;
+		parser.advance();
+		Ok(Spanned { node, span })
+	}
+}
+
+impl<T: Atomizable> FromToken for T {
+	fn from_token(tok: &Token) -> Result<Self> {
+		if tok.kind == Kind::Ident {
+			let atom = tok.as_atom_lower().unwrap();
+			if let Some(v) = Self::from_atom(atom.clone()) {
+				Ok(v)
+			} else {
+				Err(diagnostics::UnexpectedIdent(atom, tok.span).into())
+			}
+		} else {
+			Err(diagnostics::Unexpected(tok.kind, tok.span).into())
+		}
 	}
 }
 
@@ -85,10 +112,6 @@ impl<'a> Parser<'a> {
 		oxc_allocator::Box(self.allocator.alloc(value))
 	}
 
-	pub fn parse(self) -> ParserReturn<Spanned<CSSStyleSheet<'a>>> {
-		self.parse_entirely_with::<CSSStyleSheet<'a>>()
-	}
-
 	pub fn parse_entirely_with<T: Parse<'a>>(mut self) -> ParserReturn<Spanned<T>> {
 		self.advance();
 		let (output, panicked) = match T::parse(&mut self) {
@@ -124,7 +147,9 @@ impl<'a> Parser<'a> {
 		ParserReturn { output, warnings: self.warnings, errors: self.errors, panicked }
 	}
 
-	fn parse_comma_list_of<T: Parse<'a>>(&mut self) -> Result<oxc_allocator::Vec<'a, Spanned<T>>> {
+	pub fn parse_comma_list_of<T: Parse<'a>>(
+		&mut self,
+	) -> Result<oxc_allocator::Vec<'a, Spanned<T>>> {
 		let mut vec = self.new_vec();
 		let mut last_kind;
 		loop {
@@ -148,23 +173,8 @@ impl<'a> Parser<'a> {
 		}
 		Ok(vec)
 	}
-}
 
-#[cfg(test)]
-mod test {
-	use oxc_allocator::Allocator;
-
-	use crate::{Parser, ParserOptions};
-
-	#[test]
-	fn smoke_basic_error() {
-		let allocator = Allocator::default();
-		let parser = Parser::new(&allocator, "c", ParserOptions::default());
-		let parser_return = parser.parse();
-		assert_eq!(parser_return.warnings.len(), 1);
-		assert_eq!(parser_return.errors.len(), 1);
-		assert!(parser_return.output.is_none());
-		println!("{:?}", parser_return.warnings.get(0).unwrap());
-		println!("{:?}", parser_return.errors.get(0).unwrap());
+	pub fn warn(&mut self, error: Error) {
+		self.warnings.push(error);
 	}
 }

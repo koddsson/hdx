@@ -1,10 +1,10 @@
+use hdx_atom::Atom;
+use hdx_lexer::{Kind, Span};
 use miette::{self, Diagnostic};
 use thiserror::{self, Error};
 
-use crate::{Atom, Kind, Span};
-
 #[derive(Debug, Error, Diagnostic)]
-#[error("The token as {0} cannot yet be parsed by the parser :(")]
+#[error("The token at {0} cannot yet be parsed by the parser :(")]
 #[diagnostic(
 	help("This feature needs to be implemented within hdx. This file won't parse without it."),
 	code(hdx_parser::Unimplemented)

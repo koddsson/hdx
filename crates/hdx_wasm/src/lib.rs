@@ -1,3 +1,4 @@
+use hdx_ast::css::CSSStyleSheet;
 use hdx_lexer::{Kind, Lexer};
 use hdx_parser::{Parser, ParserOptions};
 use hdx_writer::{BaseCssWriter, WriteCss};
@@ -30,7 +31,8 @@ pub fn lex(source_text: String) -> Result<JsValue, serde_wasm_bindgen::Error> {
 #[wasm_bindgen]
 pub fn parse(source_text: String) -> Result<SerializableParserResult, serde_wasm_bindgen::Error> {
 	let allocator = Allocator::default();
-	let result = Parser::new(&allocator, source_text.as_str(), ParserOptions::default()).parse();
+	let result = Parser::new(&allocator, source_text.as_str(), ParserOptions::default())
+		.parse_with::<CSSStyleSheet>();
 	let serializer = serde_wasm_bindgen::Serializer::json_compatible();
 	let diagnostics = result
 		.errors
@@ -60,7 +62,8 @@ pub fn parse(source_text: String) -> Result<SerializableParserResult, serde_wasm
 #[wasm_bindgen]
 pub fn minify(source_text: String) -> Result<String, serde_wasm_bindgen::Error> {
 	let allocator = Allocator::default();
-	let result = Parser::new(&allocator, source_text.as_str(), ParserOptions::default()).parse();
+	let result = Parser::new(&allocator, source_text.as_str(), ParserOptions::default())
+		.parse_with::<CSSStyleSheet>();
 	if !result.errors.is_empty() {
 		return Err(serde_wasm_bindgen::Error::new("Parse error"));
 	}
@@ -73,7 +76,8 @@ pub fn minify(source_text: String) -> Result<String, serde_wasm_bindgen::Error> 
 #[wasm_bindgen]
 pub fn parse_error_report(source_text: String) -> String {
 	let allocator = Allocator::default();
-	let result = Parser::new(&allocator, source_text.as_str(), ParserOptions::default()).parse();
+	let result = Parser::new(&allocator, source_text.as_str(), ParserOptions::default())
+		.parse_with::<CSSStyleSheet>();
 	let handler = GraphicalReportHandler::new_themed(GraphicalTheme::unicode_nocolor());
 	let mut report = String::new();
 	for err in result.errors {

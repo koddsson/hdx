@@ -1,4 +1,3 @@
-use hdx_lexer::Span;
 #[cfg(feature = "serde")]
 use serde::Serialize;
 

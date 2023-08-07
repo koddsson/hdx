@@ -6,6 +6,7 @@ use std::{
 
 use criterion::{BenchmarkId, Criterion, Throughput};
 use glob::glob;
+use hdx_ast::css::CSSStyleSheet;
 use hdx_lexer::Lexer;
 use hdx_parser::{Parser, ParserOptions};
 use hdx_writer::{BaseCssWriter, WriteCss};
@@ -96,8 +97,8 @@ impl AppArgs {
 				|b, source_text| {
 					b.iter_with_large_drop(|| {
 						let allocator = Allocator::default();
-						let _ =
-							Parser::new(&allocator, source_text, ParserOptions::default()).parse();
+						let _ = Parser::new(&allocator, source_text, ParserOptions::default())
+							.parse_with::<CSSStyleSheet>();
 						allocator
 					});
 				},
@@ -124,7 +125,7 @@ impl AppArgs {
 						let allocator = Allocator::default();
 						let result =
 							Parser::new(&allocator, source_text.as_str(), ParserOptions::default())
-								.parse();
+								.parse_with::<CSSStyleSheet>();
 						{
 							let mut string = String::new();
 							let mut writer = BaseCssWriter::new(&mut string, true);

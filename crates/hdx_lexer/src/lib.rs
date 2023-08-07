@@ -8,7 +8,7 @@ mod token;
 use std::{collections::VecDeque, str::Chars};
 
 use oxc_allocator::Allocator;
-pub use span::Span;
+pub use span::{Span, Spanned};
 pub use token::{PairWise, Token, TokenValue};
 
 pub use self::kind::Kind;

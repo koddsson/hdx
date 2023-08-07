@@ -5,7 +5,9 @@ use std::{
 };
 
 use console::Style;
-use hdx_parser::{CSSStyleSheet, Parser, ParserOptions, Spanned};
+use hdx_ast::css::CSSStyleSheet;
+use hdx_lexer::Spanned;
+use hdx_parser::{Parser, ParserOptions};
 use miette::{GraphicalReportHandler, GraphicalTheme, NamedSource, Report};
 use oxc_allocator::Allocator;
 use serde::Serialize;
@@ -121,7 +123,7 @@ pub trait ParserCase: Sized + Sync + Send + UnwindSafe {
 		let source_text = self.source_text().to_owned();
 		let source_path = self.path();
 		let parser = Parser::new(&allocator, &source_text, self.parser_options(args));
-		let ret = parser.parse();
+		let ret = parser.parse_with::<CSSStyleSheet>();
 		let handler = GraphicalReportHandler::new_themed(GraphicalTheme::unicode_nocolor());
 		let mut warnings = String::new();
 		for warn in ret.warnings {

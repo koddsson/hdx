@@ -1,10 +1,13 @@
-use hdx_lexer::Span;
-use oxc_allocator::{Box, Vec};
+use hdx_lexer::Kind;
+use hdx_parser::{diagnostics, Parse, Parser, Result as ParserResult};
+use hdx_writer::{CssWriter, Result as WriterResult, WriteCss};
 #[cfg(feature = "serde")]
 use serde::Serialize;
 
+use super::NoPreludeAllowed;
 use crate::{
-	atom, css::properties::Property, Atom, Atomizable, Spanned, Specificity, ToSpecificity,
+	atom, css::properties::CSSStyleProperty, Atom, Atomizable, Box, Spanned, Specificity,
+	ToSpecificity, Vec,
 };
 
 // https://drafts.csswg.org/cssom-1/#csspagerule
@@ -14,9 +17,68 @@ pub struct CSSPageRule<'a> {
 	#[cfg_attr(feature = "serde", serde(borrow))]
 	pub selectors: Box<'a, Spanned<PageSelectorList<'a>>>,
 	#[cfg_attr(feature = "serde", serde(borrow))]
-	pub declarations: Box<'a, Vec<'a, Spanned<Property<'a>>>>,
+	pub properties: Box<'a, Vec<'a, Spanned<CSSStyleProperty<'a>>>>,
 	#[cfg_attr(feature = "serde", serde(borrow))]
 	pub rules: Box<'a, Vec<'a, Spanned<CSSMarginRule<'a>>>>,
+}
+
+impl<'a> Parse<'a> for CSSPageRule<'a> {
+	fn parse(parser: &mut Parser<'a>) -> ParserResult<Spanned<Self>> {
+		let span = parser.cur().span;
+		parser.parse_at_rule(
+			Some(atom!("page")),
+			|parser: &mut Parser<'a>,
+			 _name: Atom,
+			 selectors: Option<Spanned<PageSelectorList<'a>>>,
+			 rules: Vec<'a, Spanned<CSSMarginRule<'a>>>,
+			 properties: Vec<'a, Spanned<CSSStyleProperty<'a>>>| {
+				Ok(Self {
+					selectors: parser.boxup(selectors.unwrap_or_else(|| {
+						Spanned::dummy(PageSelectorList { children: parser.new_vec() })
+					})),
+					properties: parser.boxup(properties),
+					rules: parser.boxup(rules),
+				}
+				.spanned(span.until(parser.cur().span)))
+			},
+		)
+	}
+}
+
+impl<'a> WriteCss<'a> for CSSPageRule<'a> {
+	fn write_css<W: CssWriter>(&self, sink: &mut W) -> WriterResult {
+		sink.write_str("@page")?;
+		if self.selectors.node.children.len() > 0 {
+			sink.write_char(' ')?;
+		}
+		self.selectors.write_css(sink)?;
+		if self.selectors.node.children.len() > 0 {
+			sink.write_trivia_char(' ')?;
+		}
+		sink.write_char('{')?;
+		sink.indent();
+		sink.write_newline()?;
+		let mut iter = self.properties.iter().peekable();
+		let mut rule_iter = self.rules.iter().peekable();
+		while let Some(decl) = iter.next() {
+			decl.write_css(sink)?;
+			if iter.peek().is_none() && rule_iter.peek().is_none() {
+				sink.write_trivia_char(';')?;
+			} else {
+				sink.write_char(';')?;
+			}
+			sink.write_newline()?;
+		}
+		for rule in rule_iter {
+			sink.write_newline()?;
+			rule.write_css(sink)?;
+			sink.write_newline()?;
+		}
+		sink.dedent();
+		sink.write_indent()?;
+		sink.write_char('}')?;
+		Ok(())
+	}
 }
 
 #[derive(Debug, PartialEq, Hash)]
@@ -25,12 +87,70 @@ pub struct PageSelectorList<'a> {
 	pub children: Vec<'a, Spanned<PageSelector<'a>>>,
 }
 
+impl<'a> Parse<'a> for PageSelectorList<'a> {
+	fn parse(parser: &mut Parser<'a>) -> ParserResult<Spanned<Self>> {
+		let span = parser.cur().span;
+		let ok = Ok(Self { children: parser.parse_comma_list_of::<PageSelector>()? }
+			.spanned(span.until(parser.cur().span)));
+		ok
+	}
+}
+
+impl<'a> WriteCss<'a> for PageSelectorList<'a> {
+	fn write_css<W: CssWriter>(&self, sink: &mut W) -> WriterResult {
+		let mut iter = self.children.iter().peekable();
+		while let Some(selector) = iter.next() {
+			selector.write_css(sink)?;
+			if iter.peek().is_some() {
+				sink.write_char(',')?;
+				sink.write_trivia_char(' ')?;
+			}
+		}
+		Ok(())
+	}
+}
+
 #[derive(Debug, PartialEq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize), serde(tag = "type"))]
 pub struct PageSelector<'a> {
 	pub page_type: Option<Atom>,
 	#[cfg_attr(feature = "serde", serde(borrow))]
 	pub pseudos: Vec<'a, Spanned<PagePseudoClass>>,
+}
+
+impl<'a> Parse<'a> for PageSelector<'a> {
+	fn parse(parser: &mut Parser<'a>) -> ParserResult<Spanned<Self>> {
+		let span = parser.cur().span;
+		let mut page_type = None;
+		let mut pseudos = parser.new_vec();
+		if parser.at(Kind::Ident) {
+			page_type = Some(parser.expect_ident()?);
+		} else {
+			parser.expect_without_advance(Kind::Colon)?;
+		}
+		if parser.at(Kind::Colon) {
+			loop {
+				pseudos.push(PagePseudoClass::parse(parser)?);
+				if !parser.at(Kind::Colon) {
+					break;
+				}
+			}
+		}
+		Ok(Self { page_type, pseudos }.spanned(span.until(parser.cur().span)))
+	}
+}
+
+impl<'a> WriteCss<'a> for PageSelector<'a> {
+	fn write_css<W: CssWriter>(&self, sink: &mut W) -> WriterResult {
+		if let Some(page_type) = &self.page_type {
+			sink.write_str(page_type.as_ref())?;
+		}
+		for pseudo in self.pseudos.iter() {
+			sink.write_char(':')?;
+			sink.write_str(pseudo.to_atom().as_ref())?;
+		}
+		Ok(())
+	}
 }
 
 impl<'a> PageSelector<'a> {
@@ -57,6 +177,18 @@ pub enum PagePseudoClass {
 	Blank,
 }
 
+impl<'a> Parse<'a> for PagePseudoClass {
+	fn parse(parser: &mut Parser<'a>) -> ParserResult<Spanned<Self>> {
+		let span = parser.cur().span;
+		parser.expect(Kind::Colon)?;
+		let name = parser.expect_ident()?;
+		match Self::from_atom(name.clone()) {
+			Some(v) => Ok(v.spanned(span.until(parser.cur().span))),
+			_ => Err(diagnostics::UnexpectedPseudo(name, span).into()),
+		}
+	}
+}
+
 impl ToSpecificity for PagePseudoClass {
 	fn specificity(&self) -> Specificity {
 		match self {
@@ -74,7 +206,49 @@ impl ToSpecificity for PagePseudoClass {
 pub struct CSSMarginRule<'a> {
 	pub name: PageMarginBox,
 	#[cfg_attr(feature = "serde", serde(borrow))]
-	pub declarations: Vec<'a, Spanned<Property<'a>>>,
+	pub properties: Vec<'a, Spanned<CSSStyleProperty<'a>>>,
+}
+
+impl<'a> Parse<'a> for CSSMarginRule<'a> {
+	fn parse(parser: &mut Parser<'a>) -> ParserResult<Spanned<Self>> {
+		let span = parser.cur().span;
+		parser.parse_at_rule(
+			None,
+			|parser: &mut Parser<'a>,
+			 _name: Atom,
+			 _prelude: Option<Spanned<NoPreludeAllowed>>,
+			 _rules: Vec<'a, Spanned<CSSMarginRule<'a>>>,
+			 properties: Vec<'a, Spanned<CSSStyleProperty<'a>>>| {
+				Ok(Self { name: PageMarginBox::TopLeft, properties }
+					.spanned(span.until(parser.cur().span)))
+			},
+		)
+	}
+}
+
+impl<'a> WriteCss<'a> for CSSMarginRule<'a> {
+	fn write_css<W: CssWriter>(&self, sink: &mut W) -> WriterResult {
+		sink.write_char('@')?;
+		sink.write_str(self.name.to_atom().as_ref())?;
+		sink.write_trivia_char(' ')?;
+		sink.write_char('{')?;
+		sink.indent();
+		sink.write_newline()?;
+		let mut iter = self.properties.iter().peekable();
+		while let Some(decl) = iter.next() {
+			decl.write_css(sink)?;
+			if iter.peek().is_none() {
+				sink.write_trivia_char(';')?;
+			} else {
+				sink.write_char(';')?;
+			}
+			sink.write_newline()?;
+		}
+		sink.dedent();
+		sink.write_indent()?;
+		sink.write_char('}')?;
+		Ok(())
+	}
 }
 
 #[derive(Atomizable, Debug, Clone, PartialEq, Hash)]
