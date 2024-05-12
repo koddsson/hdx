@@ -3,6 +3,7 @@ use hdx_ast::css::{
 	visit::VisitMut,
 };
 
+/// The "ReduceInitial" will visit each property which has the literal value 'initial' and mutate it to a "default" literal.
 #[derive(Default)]
 pub struct ReduceInitial();
 
