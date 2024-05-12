@@ -11,6 +11,8 @@ use miette::{GraphicalReportHandler, GraphicalTheme};
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
 
+/// I think this is just a WASM wrapper around various functions so it's easy to call them from JS.
+
 #[wasm_bindgen(start)]
 pub fn main() {
 	#[cfg(feature = "console_error_panic_hook")]
